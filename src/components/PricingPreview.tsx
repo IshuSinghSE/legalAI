@@ -181,7 +181,7 @@ export function PricingPreview({ onGetStarted }: PricingPreviewProps) {
         {/* Additional Features */}
         <div className="text-center">
           <h3 className="text-xl font-semibold text-gray-900 mb-6">
-            What's included in all plans
+            What&apos;s included in all plans
           </h3>
           <div className="flex flex-wrap justify-center gap-6 max-w-3xl mx-auto">
             {additionalFeatures.map((feature, index) => (

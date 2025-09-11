@@ -59,10 +59,10 @@ export function FAQ() {
   ];
 
   const categories = [
-    { name: "Security & Privacy", count: 2 },
-    { name: "Features & Functionality", count: 4 },
-    { name: "Pricing & Plans", count: 2 },
-    { name: "Technical & Integration", count: 4 }
+  { name: "Security & Privacy", count: 2 },
+  { name: "Features & Functionality", count: 4 },
+  { name: "Pricing & Plans", count: 2 },
+  { name: "Technical & Integration", count: 4 }
   ];
 
   return (
@@ -127,7 +127,7 @@ export function FAQ() {
             {/* Contact CTA */}
             <div className="mt-12 text-center bg-blue-50 rounded-2xl p-8">
               <h3 className="text-xl font-semibold text-gray-900 mb-2">
-                Didn't find what you were looking for?
+                Didn&apos;t find what you were looking for?
               </h3>
               <p className="text-gray-600 mb-6">
                 Our support team is here to help you with any questions or concerns

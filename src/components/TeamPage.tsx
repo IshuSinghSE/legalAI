@@ -2,6 +2,7 @@ import { Card, CardContent } from "./ui/card";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
 import { ArrowLeft, Github, Linkedin, Mail, Palette, Code, Lightbulb } from "lucide-react";
+import Image from "next/image";
 // Use public/assets/03bcad6d91cea8e9e84f8bf987f3efc26ab8eb42.png for Next.js static asset
 const teamLogo = "/assets/03bcad6d91cea8e9e84f8bf987f3efc26ab8eb42.png";
 
@@ -92,10 +93,13 @@ export function TeamPage({ onBack }: TeamPageProps) {
             
             {/* Team Logo */}
             <div className="mb-8 flex justify-center">
-              <img 
+              <Image 
                 src={teamLogo} 
                 alt="CodeSquad Logo" 
+                height={128}
+                width={256}
                 className="h-32 w-auto object-contain"
+                priority
               />
             </div>
             
@@ -109,7 +113,7 @@ export function TeamPage({ onBack }: TeamPageProps) {
             <div className="flex flex-wrap justify-center gap-4 text-sm">
               <span className="bg-white/10 px-4 py-2 rounded-full">Based in Delhi, India 🇮🇳</span>
               <span className="bg-white/10 px-4 py-2 rounded-full">Remote-Friendly Team</span>
-              <span className="bg-white/10 px-4 py-2 rounded-full">Creative & Technical Excellence</span>
+              <span className="bg-white/10 px-4 py-2 rounded-full">Creative &amp; Technical Excellence</span>
             </div>
           </div>
         </div>
@@ -161,7 +165,7 @@ export function TeamPage({ onBack }: TeamPageProps) {
                     <p className="text-xl text-blue-600 mb-4">{member.role}</p>
                     <p className="text-gray-600 leading-relaxed mb-6">{member.bio}</p>
                     <p className="text-gray-700 italic border-l-4 border-blue-200 pl-4 bg-blue-50 p-4 rounded-r-lg">
-                      "{member.personality}"
+                      &quot;{member.personality}&quot;
                     </p>
                   </div>
 
@@ -210,7 +214,7 @@ export function TeamPage({ onBack }: TeamPageProps) {
             Ready to Work with CodeSquad?
           </h2>
           <p className="text-gray-600 mb-8 max-w-2xl mx-auto">
-            Let's bring your digital vision to life. We specialize in creating beautiful, 
+            Let&apos;s bring your digital vision to life. We specialize in creating beautiful, 
             functional web applications that users love and businesses thrive on.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">

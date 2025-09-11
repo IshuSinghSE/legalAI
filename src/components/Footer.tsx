@@ -1,6 +1,5 @@
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
-import { Separator } from "./ui/separator";
 import { Facebook, Twitter, Linkedin, Mail, MapPin } from "lucide-react";
 
 interface FooterProps {

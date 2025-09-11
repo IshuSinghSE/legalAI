@@ -110,7 +110,7 @@ export function Testimonials() {
                 <div className="relative mb-6">
                   <Quote className="w-8 h-8 text-blue-100 absolute -top-2 -left-2" />
                   <p className="text-gray-700 leading-relaxed relative z-10">
-                    "{testimonial.content}"
+                    &quot;{testimonial.content}&quot;
                   </p>
                 </div>
 

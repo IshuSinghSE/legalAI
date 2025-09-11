@@ -39,7 +39,7 @@ export function AboutPage() {
             Making Legal Knowledge <span className="text-blue-600">Accessible</span> to Everyone
           </h1>
           <p className="text-xl text-gray-600 max-w-4xl mx-auto leading-relaxed">
-            At LegalAI, we believe that understanding legal documents shouldn't require a law degree. 
+            At LegalAI, we believe that understanding legal documents shouldn&apos;t require a law degree. 
             Our mission is to democratize legal knowledge through innovative AI technology, making 
             complex legal language accessible to individuals and businesses worldwide.
           </p>
@@ -50,8 +50,8 @@ export function AboutPage() {
           <div>
             <h2 className="text-3xl font-bold text-gray-900 mb-6">Our Mission</h2>
             <p className="text-gray-600 mb-6 leading-relaxed">
-              We're on a mission to bridge the gap between complex legal language and everyday understanding. 
-              Legal documents shouldn't be barriers to informed decision-making. Through cutting-edge AI 
+              We&apos;re on a mission to bridge the gap between complex legal language and everyday understanding. 
+              Legal documents shouldn&apos;t be barriers to informed decision-making. Through cutting-edge AI 
               technology, we transform intimidating legal jargon into clear, actionable guidance.
             </p>
             <p className="text-gray-600 mb-8 leading-relaxed">
@@ -98,7 +98,7 @@ export function AboutPage() {
           <div className="text-center mb-16">
             <h2 className="text-3xl font-bold text-gray-900 mb-4">Why Choose LegalAI?</h2>
             <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-              We're not just another document reader. We're your trusted partner in legal understanding.
+              We&apos;re not just another document reader. We&apos;re your trusted partner in legal understanding.
             </p>
           </div>
 
@@ -125,7 +125,7 @@ export function AboutPage() {
           <div className="text-center mb-12">
             <h2 className="text-3xl font-bold text-gray-900 mb-4">Our Commitment</h2>
             <p className="text-gray-600 max-w-3xl mx-auto">
-              We're committed to maintaining the highest standards of accuracy, security, and user experience. 
+              We&apos;re committed to maintaining the highest standards of accuracy, security, and user experience. 
               Our team continuously improves our AI models to serve you better.
             </p>
           </div>
