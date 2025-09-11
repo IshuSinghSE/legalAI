@@ -1,10 +1,11 @@
-import { useState } from "react";
-import { Button } from "./ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
-import { Badge } from "./ui/badge";
-import { Upload, FileText, Highlighter, Download, RefreshCw, ArrowLeft } from "lucide-react";
-import { ImageWithFallback } from "./figma/ImageWithFallback";
+"use client";
+import { useRef, useState } from 'react';
+import { Button } from './ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
+import { Badge } from './ui/badge';
+import { Upload, FileText, Highlighter, Download, RefreshCw, ArrowLeft } from 'lucide-react';
+import { ImageWithFallback } from './figma/ImageWithFallback';
 
 interface DocumentUploadProps {
   onBack: () => void;
@@ -12,10 +13,23 @@ interface DocumentUploadProps {
 
 export function DocumentUpload({ onBack }: DocumentUploadProps) {
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [summary, setSummary] = useState("");
-  const [selectedPages, setSelectedPages] = useState<string>("all");
+  const [summary, setSummary] = useState('');
+  const [selectedPages, setSelectedPages] = useState<string>('all');
+  // Drag-and-drop support
+  const handleDrop = (event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    if (event.dataTransfer.files && event.dataTransfer.files[0]) {
+      handleFileUpload({
+        target: { files: event.dataTransfer.files },
+      } as React.ChangeEvent<HTMLInputElement>);
+    }
+  };
 
+  const handleDragOver = (event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+  };
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
@@ -62,16 +76,14 @@ The agreement follows best practices in employment law and provides a solid foun
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="mb-8">
-          <Button
-            variant="ghost"
-            onClick={onBack}
-            className="mb-4"
-          >
+          <Button variant="ghost" onClick={onBack} className="mb-4">
             <ArrowLeft className="w-4 h-4 mr-2" />
             Back to Home
           </Button>
           <h1 className="text-3xl font-bold text-gray-900">Document Analysis</h1>
-          <p className="text-gray-600 mt-2">Upload your legal document for AI-powered analysis and simplification</p>
+          <p className="text-gray-600 mt-2">
+            Upload your legal document for AI-powered analysis and simplification
+          </p>
         </div>
 
         <div className="grid lg:grid-cols-2 gap-8">
@@ -85,22 +97,28 @@ The agreement follows best practices in employment law and provides a solid foun
             </CardHeader>
             <CardContent>
               {!uploadedFile ? (
-                <div className="border-2 border-dashed border-gray-300 rounded-lg p-12 text-center hover:border-blue-500 transition-colors">
+                <div
+                  className="border-2 border-dashed border-gray-300 rounded-lg p-12 text-center hover:border-blue-500 transition-colors"
+                  onDrop={handleDrop}
+                  onDragOver={handleDragOver}
+                >
                   <Upload className="w-12 h-12 mx-auto text-gray-400 mb-4" />
                   <h3 className="font-medium text-gray-900 mb-2">Upload your document</h3>
                   <p className="text-gray-600 mb-4">Drag and drop or click to browse</p>
                   <input
+                    ref={fileInputRef}
                     type="file"
                     accept=".pdf,.doc,.docx,.txt"
                     onChange={handleFileUpload}
                     className="hidden"
-                    id="file-upload"
                   />
-                  <label htmlFor="file-upload">
-                    <Button className="bg-blue-600 hover:bg-blue-700 cursor-pointer">
-                      Choose File
-                    </Button>
-                  </label>
+                   
+                  <Button
+                    className="bg-blue-600 hover:bg-blue-700 cursor-pointer"
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    Choose File
+                  </Button>
                   <p className="text-xs text-gray-500 mt-2">Supports PDF, DOC, DOCX, TXT files</p>
                 </div>
               ) : (
@@ -109,7 +127,9 @@ The agreement follows best practices in employment law and provides a solid foun
                     <FileText className="w-8 h-8 text-blue-600" />
                     <div className="flex-1">
                       <h3 className="font-medium text-gray-900">{uploadedFile.name}</h3>
-                      <p className="text-sm text-gray-600">{(uploadedFile.size / 1024 / 1024).toFixed(2)} MB</p>
+                      <p className="text-sm text-gray-600">
+                        {(uploadedFile.size / 1024 / 1024).toFixed(2)} MB
+                      </p>
                     </div>
                     <Badge variant="secondary" className="bg-green-100 text-green-800">
                       Uploaded
@@ -134,11 +154,7 @@ The agreement follows best practices in employment law and provides a solid foun
 
                   {/* Action Buttons */}
                   <div className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="flex-1"
-                    >
+                    <Button variant="outline" size="sm" className="flex-1">
                       <Highlighter className="w-4 h-4 mr-2" />
                       Highlight
                     </Button>
@@ -152,12 +168,7 @@ The agreement follows best practices in employment law and provides a solid foun
                       <RefreshCw className={`w-4 h-4 mr-2 ${isProcessing ? 'animate-spin' : ''}`} />
                       Summarize Again
                     </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="flex-1"
-                      disabled={!summary}
-                    >
+                    <Button variant="outline" size="sm" className="flex-1" disabled={!summary}>
                       <Download className="w-4 h-4 mr-2" />
                       Download
                     </Button>
@@ -168,11 +179,12 @@ The agreement follows best practices in employment law and provides a solid foun
           </Card>
 
           {/* Summary Section */}
-          <Card className="h-fit">
-            <CardHeader>
-              <CardTitle>AI Analysis Results</CardTitle>
-            </CardHeader>
-            <CardContent>
+          {uploadedFile && (
+            <Card className="h-fit">
+              <CardHeader>
+                <CardTitle>AI Analysis Results</CardTitle>
+              </CardHeader>
+              <CardContent>
               {isProcessing ? (
                 <div className="text-center py-12">
                   <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
@@ -187,7 +199,7 @@ The agreement follows best practices in employment law and provides a solid foun
                       <span className="text-sm font-medium text-green-800">Analysis Complete</span>
                     </div>
                   </div>
-                  
+
                   <div className="prose max-w-none">
                     <div className="whitespace-pre-line text-gray-700 leading-relaxed">
                       {summary}
@@ -215,7 +227,7 @@ The agreement follows best practices in employment law and provides a solid foun
                 </div>
               )}
             </CardContent>
-          </Card>
+          </Card>)}
         </div>
       </div>
     </div>
