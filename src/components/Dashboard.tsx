@@ -20,6 +20,7 @@ import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { UploadCard } from './UploadCard';
 import { Badge } from './ui/badge';
+import { useTTS } from '../hooks/useTTS';
 const PDFViewer = dynamic(() => import('./PDFViewer').then((mod) => mod.PDFViewer), { ssr: false });
 
 
@@ -29,6 +30,9 @@ export function Dashboard() {
   const [summary, setSummary] = React.useState<string>('');
   const [selectedPages, setSelectedPages] = React.useState<string>('all');
 
+  // Use the TTS hook
+  const { isSpeaking, handleTextToSpeech, renderHighlightedText } = useTTS(summary);
+
   // Simulate summary loading when file is uploaded
   React.useEffect(() => {
     if (uploadedFile) {
@@ -36,7 +40,8 @@ export function Dashboard() {
       setSummary('');
       setTimeout(() => {
         setIsProcessing(false);
-        setSummary(`This legal document is a standard employment contract that outlines the terms and conditions of employment. Key points include:\n\n• Employment term: Indefinite with 30-day notice period\n• Salary: $75,000 annually, paid bi-weekly\n• Benefits: Health insurance, dental coverage, and 401(k) matching\n• Working hours: 40 hours per week, flexible schedule\n• Confidentiality clauses: Standard non-disclosure agreements\n• Termination conditions: Either party may terminate with proper notice\n\nThe document appears to be compliant with local labor laws and contains standard protective clauses for both employer and employee.`);
+        const newSummary = `This legal document is a standard employment contract that outlines the terms and conditions of employment. Key points include:\n\n• Employment term: Indefinite with 30-day notice period\n• Salary: $75,000 annually, paid bi-weekly\n• Benefits: Health insurance, dental coverage, and 401(k) matching\n• Working hours: 40 hours per week, flexible schedule\n• Confidentiality clauses: Standard non-disclosure agreements\n• Termination conditions: Either party may terminate with proper notice\n\nThe document appears to be compliant with local labor laws and contains standard protective clauses for both employer and employee.`;
+        setSummary(newSummary);
       }, 2000);
     }
   }, [uploadedFile, selectedPages]);
@@ -45,7 +50,8 @@ export function Dashboard() {
     setIsProcessing(true);
     setTimeout(() => {
       setIsProcessing(false);
-      setSummary(`Updated summary based on ${selectedPages} pages:\n\nThis employment agreement establishes a professional relationship with competitive compensation and comprehensive benefits. The contract emphasizes mutual respect and clear expectations for both parties.\n\nKey highlights:\n• Competitive salary with regular review opportunities\n• Comprehensive health and wellness benefits\n• Flexible work arrangements supporting work-life balance\n• Clear performance expectations and growth opportunities\n• Standard legal protections for intellectual property\n\nThe agreement follows best practices in employment law and provides a solid foundation for a successful working relationship.`);
+      const newSummary = `Updated summary based on ${selectedPages} pages:\n\nThis employment agreement establishes a professional relationship with competitive compensation and comprehensive benefits. The contract emphasizes mutual respect and clear expectations for both parties.\n\nKey highlights:\n• Competitive salary with regular review opportunities\n• Comprehensive health and wellness benefits\n• Flexible work arrangements supporting work-life balance\n• Clear performance expectations and growth opportunities\n• Standard legal protections for intellectual property\n\nThe agreement follows best practices in employment law and provides a solid foundation for a successful working relationship.`;
+      setSummary(newSummary);
     }, 1500);
   };
 
@@ -55,7 +61,7 @@ export function Dashboard() {
       <div className="bg-white border-b">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-2">
           <div>
-            <Link href="/upload">
+            <Link href="/">
               <div className="flex items-center  mb-2">
                 <ArrowLeft className="w-6 h-6 mr-2" />
                 <h1 className="text-3xl font-bold text-gray-900 ">Document Analysis</h1>
@@ -176,8 +182,16 @@ export function Dashboard() {
                       <div className="flex items-center justify-between">
                         <CardTitle>AI Analysis Results</CardTitle>
                         <div className="flex items-center gap-2">
-                          <Button variant="ghost" size="sm">
-                            <Volume2 className="w-4 h-4" />
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            onClick={handleTextToSpeech}
+                            disabled={!summary}
+                            className={`${isSpeaking ? 'text-red-600 hover:text-red-700 hover:bg-red-100' : 'text-gray-600 hover:text-gray-700 hover:bg-gray-50'} transition-colors duration-200`}
+                          >
+
+                              <Volume2 className={`w-4 h-4 ${isSpeaking?"animate-pulse text-blue-600":""}`} />
+
                           </Button>
                           <Button variant="ghost" size="sm">
                             <Type className="w-4 h-4" />
@@ -206,9 +220,7 @@ export function Dashboard() {
                           </div>
 
                           <div className="prose max-w-none">
-                            <div className="whitespace-pre-line text-gray-700 leading-relaxed">
-                              {summary}
-                            </div>
+                            {renderHighlightedText(summary)}
                           </div>
 
                           <div className="mt-6 p-4 bg-blue-50 rounded-lg">
