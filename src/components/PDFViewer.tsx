@@ -17,8 +17,11 @@ import {
   ZoomOut,
   RotateCw,
   Download,
-  X
+  X,
+  Volume2,
+  Square
 } from "lucide-react";
+import { useTTS } from '../hooks/useTTS';
 
 pdfjs.GlobalWorkerOptions.workerSrc = "/pdf.worker.js";
 
@@ -60,6 +63,9 @@ export function PDFViewer({ documentUrl, onAnnotation }: PDFViewerProps) {
   });
   const [aiResults, setAiResults] = useState<{[key: string]: string}>({});
   const viewerRef = useRef<HTMLDivElement>(null);
+
+  // TTS for selected text
+  const { isSpeaking: isTTSSpeaking, handleTextToSpeech: handleTTS } = useTTS(floatingToolbar.selectedText);
 
   const handleTextSelection = () => {
     const selection = window.getSelection();
@@ -126,6 +132,12 @@ export function PDFViewer({ documentUrl, onAnnotation }: PDFViewerProps) {
   const copyToClipboard = () => {
     navigator.clipboard.writeText(floatingToolbar.selectedText);
     hideFloatingToolbar();
+  };
+
+  const handleTTSForSelection = () => {
+    if (floatingToolbar.selectedText) {
+      handleTTS();
+    }
   };
 
   useEffect(() => {
@@ -240,6 +252,26 @@ export function PDFViewer({ documentUrl, onAnnotation }: PDFViewerProps) {
                 </TooltipTrigger>
                 <TooltipContent>
                   <p>Highlight</p>
+                </TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={handleTTSForSelection}
+                    disabled={!floatingToolbar.selectedText}
+                    className={isTTSSpeaking ? 'text-red-600 hover:text-red-700' : 'text-gray-600 hover:text-gray-700'}
+                  >
+                    {isTTSSpeaking ? (
+                      <Square className="w-4 h-4 animate-pulse" />
+                    ) : (
+                      <Volume2 className="w-4 h-4" />
+                    )}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>{isTTSSpeaking ? 'Stop Listening' : 'Listen'}</p>
                 </TooltipContent>
               </Tooltip>
               <Tooltip>

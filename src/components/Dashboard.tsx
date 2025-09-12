@@ -5,9 +5,9 @@ import {
   Download,
   FileText,
   Highlighter,
+  Languages,
   MoreHorizontal,
   RotateCcw,
-  Type,
   Upload,
   Volume2,
 } from 'lucide-react';
@@ -15,6 +15,7 @@ import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
+import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import dynamic from 'next/dynamic';
 
 import Link from 'next/link';
@@ -29,6 +30,9 @@ export function Dashboard() {
   const [isProcessing, setIsProcessing] = React.useState(false);
   const [summary, setSummary] = React.useState<string>('');
   const [selectedPages, setSelectedPages] = React.useState<string>('all');
+  const [isTranslated, setIsTranslated] = React.useState(false);
+  const [translatedText, setTranslatedText] = React.useState<string>('');
+  const [selectedLanguage, setSelectedLanguage] = React.useState<string>('fr');
 
   // Use the TTS hook
   const { isSpeaking, handleTextToSpeech, renderHighlightedText } = useTTS(summary);
@@ -53,6 +57,36 @@ export function Dashboard() {
       const newSummary = `Updated summary based on ${selectedPages} pages:\n\nThis employment agreement establishes a professional relationship with competitive compensation and comprehensive benefits. The contract emphasizes mutual respect and clear expectations for both parties.\n\nKey highlights:\n• Competitive salary with regular review opportunities\n• Comprehensive health and wellness benefits\n• Flexible work arrangements supporting work-life balance\n• Clear performance expectations and growth opportunities\n• Standard legal protections for intellectual property\n\nThe agreement follows best practices in employment law and provides a solid foundation for a successful working relationship.`;
       setSummary(newSummary);
     }, 1500);
+  };
+
+  const handleTranslationToggle = async () => {
+    if (isTranslated) {
+      // Switch back to original text
+      setIsTranslated(false);
+    } else {
+      // Translate the text
+      try {
+        const formData = new FormData();
+        formData.append('text', summary);
+        formData.append('targetLanguage', selectedLanguage);
+
+        const response = await fetch('/api/translate', {
+          method: 'POST',
+          body: formData,
+        });
+
+        if (!response.ok) {
+          throw new Error('Translation failed');
+        }
+
+        const data = await response.json();
+        setTranslatedText(data.translatedText);
+        setIsTranslated(true);
+      } catch (error) {
+        console.error('Translation error:', error);
+        // Could add error handling UI here
+      }
+    }
   };
 
   return (
@@ -189,13 +223,52 @@ export function Dashboard() {
                             disabled={!summary}
                             className={`${isSpeaking ? 'text-red-600 hover:text-red-700 hover:bg-red-100' : 'text-gray-600 hover:text-gray-700 hover:bg-gray-50'} transition-colors duration-200`}
                           >
-
                               <Volume2 className={`w-4 h-4 ${isSpeaking?"animate-pulse text-blue-600":""}`} />
+                          </Button>
 
-                          </Button>
-                          <Button variant="ghost" size="sm">
-                            <Type className="w-4 h-4" />
-                          </Button>
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <Button 
+                                variant="ghost" 
+                                size="sm"
+                                className={`${isTranslated ? 'text-blue-600 hover:text-blue-700 hover:bg-blue-100' : 'text-gray-600 hover:text-gray-700 hover:bg-gray-50'} transition-colors duration-200`}
+                              >
+                                <Languages className="w-4 h-4" />
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-64" align="end">
+                              <div className="space-y-3">
+                                <h4 className="font-medium text-sm">Translate to</h4>
+                                <Select value={selectedLanguage} onValueChange={setSelectedLanguage}>
+                                  <SelectTrigger className="w-full">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="hi">🇮🇳 Hindi</SelectItem>
+                                    <SelectItem value="fr">🇫🇷 French</SelectItem>
+                                    <SelectItem value="es">🇪🇸 Spanish</SelectItem>
+                                    <SelectItem value="de">🇩🇪 German</SelectItem>
+                                    <SelectItem value="it">🇮🇹 Italian</SelectItem>
+                                    <SelectItem value="pt">🇵🇹 Portuguese</SelectItem>
+                                    <SelectItem value="ru">🇷🇺 Russian</SelectItem>
+                                    <SelectItem value="ja">🇯🇵 Japanese</SelectItem>
+                                    <SelectItem value="ko">🇰🇷 Korean</SelectItem>
+                                    <SelectItem value="zh">🇨🇳 Chinese</SelectItem>
+                                    <SelectItem value="ar">🇸🇦 Arabic</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                                <Button 
+                                  onClick={handleTranslationToggle}
+                                  disabled={!summary}
+                                  className="w-full"
+                                  variant={isTranslated ? "default" : "outline"}
+                                >
+                                  {isTranslated ? 'Show Original' : 'Translate'}
+                                </Button>
+                              </div>
+                            </PopoverContent>
+                          </Popover>
+
                           <Button variant="ghost" size="sm">
                             <MoreHorizontal className="w-4 h-4" />
                           </Button>
@@ -220,7 +293,7 @@ export function Dashboard() {
                           </div>
 
                           <div className="prose max-w-none">
-                            {renderHighlightedText(summary)}
+                            {renderHighlightedText(isTranslated && translatedText ? translatedText : summary)}
                           </div>
 
                           <div className="mt-6 p-4 bg-blue-50 rounded-lg">
