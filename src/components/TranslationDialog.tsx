@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Textarea } from './ui/textarea';
 import { Badge } from './ui/badge';
 import { Alert, AlertDescription } from './ui/alert';
+import { Skeleton } from './ui/skeleton';
 import useTranslation from '../hooks/useTranslation';
 
 interface TranslationDialogProps {
@@ -45,7 +46,7 @@ export function TranslationDialog({
 //   translatedText: externalTranslatedText
 }: TranslationDialogProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const [targetLanguage, setTargetLanguage] = useState(externalSelectedLanguage || 'fr');
+  const [targetLanguage, setTargetLanguage] = useState(externalSelectedLanguage || 'hi');
   const [inputText, setInputText] = useState(text || '');
 
   const { translateText, translatePDF, result, loading, error, clearResult } = useTranslation();
@@ -191,32 +192,51 @@ export function TranslationDialog({
           )}
 
           {/* Results */}
-          {result && (
+          {(result || loading) && (
             <div className="space-y-4">
               {/* Language Info */}
-              <div className="flex items-center gap-2 text-sm text-gray-600">
-                <Badge variant="outline">Detected: {result.detectedLanguage.toUpperCase()}</Badge>
-                <span>→</span>
-                <Badge variant="outline">Target: {result.targetLanguage.toUpperCase()}</Badge>
-              </div>
+              {result && (
+                <div className="flex items-center gap-2 text-sm text-gray-600">
+                  <Badge variant="outline">Detected: {result.detectedLanguage.toUpperCase()}</Badge>
+                  <span>→</span>
+                  <Badge variant="outline">Target: {result.targetLanguage.toUpperCase()}</Badge>
+                </div>
+              )}
 
               {/* Translation */}
               <div>
                 <h4 className="text-sm font-medium mb-2">Translation</h4>
                 <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
-                  <p className="text-sm text-green-800 leading-relaxed">{result.translatedText}</p>
+                  {loading ? (
+                    <div className="space-y-2">
+                      <Skeleton className="h-4 w-full" />
+                      <Skeleton className="h-4 w-3/4" />
+                      <Skeleton className="h-4 w-1/2" />
+                    </div>
+                  ) : result ? (
+                    <p className="text-sm text-green-800 leading-relaxed">{result.translatedText}</p>
+                  ) : null}
                 </div>
               </div>
 
-              {/* Original Text (truncated if too long) */}
+              {/* Original Text */}
               <div>
                 <h4 className="text-sm font-medium mb-2">Original Text</h4>
                 <div className="p-3 bg-gray-50 rounded-lg max-h-32 overflow-y-auto">
-                  <p className="text-sm text-gray-700">
-                    {result.originalText.length > 500
-                      ? `${result.originalText.substring(0, 500)}...`
-                      : result.originalText}
-                  </p>
+                  {loading ? (
+                    <div className="space-y-2">
+                      <Skeleton className="h-4 w-full" />
+                      <Skeleton className="h-4 w-5/6" />
+                      <Skeleton className="h-4 w-4/5" />
+                      <Skeleton className="h-4 w-3/4" />
+                    </div>
+                  ) : result ? (
+                    <p className="text-sm text-gray-700">
+                      {result.originalText.length > 500
+                        ? `${result.originalText.substring(0, 500)}...`
+                        : result.originalText}
+                    </p>
+                  ) : null}
                 </div>
               </div>
             </div>

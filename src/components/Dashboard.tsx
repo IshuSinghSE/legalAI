@@ -29,35 +29,57 @@ export function Dashboard() {
   const [uploadedFile, setUploadedFile] = React.useState<File | null>(null);
   const [isProcessing, setIsProcessing] = React.useState(false);
   const [summary, setSummary] = React.useState<string>('');
+  const [highlights, setHighlights] = React.useState<string[]>([]);
   const [selectedPages, setSelectedPages] = React.useState<string>('all');
   const [isTranslated, setIsTranslated] = React.useState(false);
   const [translatedText, setTranslatedText] = React.useState<string>('');
-  const [selectedLanguage, setSelectedLanguage] = React.useState<string>('fr');
+  const [selectedLanguage, setSelectedLanguage] = React.useState<string>('hi');
 
   // Use the TTS hook
   const { isSpeaking, handleTextToSpeech, renderHighlightedText } = useTTS(summary);
 
-  // Simulate summary loading when file is uploaded
-  React.useEffect(() => {
-    if (uploadedFile) {
-      setIsProcessing(true);
-      setSummary('');
-      setTimeout(() => {
-        setIsProcessing(false);
-        const newSummary = `This legal document is a standard employment contract that outlines the terms and conditions of employment. Key points include:\n\n• Employment term: Indefinite with 30-day notice period\n• Salary: $75,000 annually, paid bi-weekly\n• Benefits: Health insurance, dental coverage, and 401(k) matching\n• Working hours: 40 hours per week, flexible schedule\n• Confidentiality clauses: Standard non-disclosure agreements\n• Termination conditions: Either party may terminate with proper notice\n\nThe document appears to be compliant with local labor laws and contains standard protective clauses for both employer and employee.`;
-        setSummary(newSummary);
-      }, 2000);
+  const analyzeDocument = React.useCallback(async () => {
+    if (!uploadedFile) return;
+
+    setIsProcessing(true);
+    setSummary('');
+    setHighlights([]);
+
+    try {
+      const formData = new FormData();
+      formData.append('file', uploadedFile);
+      formData.append('selectedPages', selectedPages);
+
+      const response = await fetch('/api/analyze', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error('Analysis failed');
+      }
+
+      const data = await response.json();
+      setSummary(data.summary);
+      setHighlights(data.highlights || []);
+    } catch (error) {
+      console.error('Analysis error:', error);
+      setSummary('Error analyzing document. Please try again.');
+    } finally {
+      setIsProcessing(false);
     }
   }, [uploadedFile, selectedPages]);
 
-  const handleSummarizeAgain = () => {
-    setIsProcessing(true);
-    setTimeout(() => {
-      setIsProcessing(false);
-      const newSummary = `Updated summary based on ${selectedPages} pages:\n\nThis employment agreement establishes a professional relationship with competitive compensation and comprehensive benefits. The contract emphasizes mutual respect and clear expectations for both parties.\n\nKey highlights:\n• Competitive salary with regular review opportunities\n• Comprehensive health and wellness benefits\n• Flexible work arrangements supporting work-life balance\n• Clear performance expectations and growth opportunities\n• Standard legal protections for intellectual property\n\nThe agreement follows best practices in employment law and provides a solid foundation for a successful working relationship.`;
-      setSummary(newSummary);
-    }, 1500);
-  };
+  // Analyze document when file is uploaded
+  React.useEffect(() => {
+    if (uploadedFile) {
+      analyzeDocument();
+    }
+  }, [uploadedFile, analyzeDocument]);
+
+  const handleSummarizeAgain = React.useCallback(() => {
+    analyzeDocument();
+  }, [analyzeDocument]);
 
   const handleTranslationToggle = async () => {
     if (isTranslated) {
@@ -298,11 +320,15 @@ export function Dashboard() {
 
                           <div className="mt-6 p-4 bg-blue-50 rounded-lg">
                             <h4 className="font-medium text-blue-900 mb-2">Key Recommendations</h4>
-                            <ul className="text-sm text-blue-800 space-y-1">
-                              <li>• Review the termination clauses carefully</li>
-                              <li>• Understand your benefits eligibility timeline</li>
-                              <li>• Consider legal consultation for any concerns</li>
-                            </ul>
+                            {highlights.length > 0 ? (
+                              <ul className="text-sm text-blue-800 space-y-1">
+                                {highlights.map((point, index) => (
+                                  <li key={index}>{point}</li>
+                                ))}
+                              </ul>
+                            ) : (
+                              <p className="text-sm text-blue-700">No specific recommendations found.</p>
+                            )}
                           </div>
                         </div>
                       ) : (
