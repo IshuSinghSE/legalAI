@@ -1,6 +1,5 @@
 import { createHash } from 'crypto';
 import { GoogleGenerativeAI } from '@google/generative-ai';
-import pdfParse from 'pdf-parse';
 import { ANALYSIS_PROMPT } from '@/constant';
 
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_GEMINI_API_KEY!);
@@ -63,9 +62,27 @@ export async function POST(request: Request) {
     }
 
     console.log('Parsing PDF...');
-    // Extract text from PDF
-    const pdfData = await pdfParse(buffer);
-    const fullText = pdfData.text;
+    // Dynamically import pdfreader for PDF text extraction
+    let PdfReader;
+    try {
+      ({ PdfReader } = await import('pdfreader'));
+    } catch (importError) {
+      console.error('Failed to import pdfreader:', importError);
+      return new Response(JSON.stringify({ error: 'PDF parsing library not available' }), {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+    // Extract text from PDF using pdfreader
+    const pdfReader = new PdfReader();
+    let fullText = '';
+    await new Promise<void>((resolve, reject) => {
+      pdfReader.parseBuffer(buffer, (err: unknown, item: unknown) => {
+        if (err) reject(err);
+        else if (!item) resolve();
+        else if (item && typeof item === 'object' && 'text' in item) fullText += (item as { text: string }).text + ' ';
+      });
+    });
 
     console.log('PDF parsed successfully. Text length:', fullText.length);
 
@@ -83,7 +100,7 @@ export async function POST(request: Request) {
     const analysisPrompt = ANALYSIS_PROMPT;
 
     // Initialize Gemini model
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash-lite' });
 
     // Create the full prompt
     const fullPrompt = `${analysisPrompt}\n\nDocument Content:\n${textToAnalyze}\n\nPlease provide your analysis in the specified format.`;
