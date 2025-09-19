@@ -54,6 +54,7 @@ export function PDFViewer({ documentUrl, onAnnotation }: PDFViewerProps) {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [zoom, setZoom] = useState(100);
+  const [containerWidth, setContainerWidth] = useState<number>(0);
   const [annotations, setAnnotations] = useState<Annotation[]>([]);
   const [floatingToolbar, setFloatingToolbar] = useState<FloatingToolbar>({
     visible: false,
@@ -63,24 +64,75 @@ export function PDFViewer({ documentUrl, onAnnotation }: PDFViewerProps) {
   });
   const [aiResults, setAiResults] = useState<{[key: string]: string}>({});
   const viewerRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
 
   // TTS for selected text
   const { isSpeaking: isTTSSpeaking, handleTextToSpeech: handleTTS } = useTTS(floatingToolbar.selectedText);
 
   const handleTextSelection = () => {
     const selection = window.getSelection();
-    if (selection && selection.toString().trim()) {
-      const range = selection.getRangeAt(0);
-      const rect = range.getBoundingClientRect();
-      const viewerRect = viewerRef.current?.getBoundingClientRect();
-      if (viewerRect) {
-        setFloatingToolbar({
-          visible: true,
-          x: rect.left - viewerRect.left + rect.width / 2,
-          y: rect.top - viewerRect.top - 50,
-          selectedText: selection.toString().trim()
-        });
+    if (!selection) return;
+
+    const text = selection.toString().trim();
+    if (!text) return;
+
+    // Ensure selection originates from PDF text layer
+    const anchorNode = selection.anchorNode as Node | null;
+    const focusNode = selection.focusNode as Node | null;
+    const closestTextLayer = (node: Node | null): Element | null => {
+      if (!node) return null;
+      let el: Node | null = node;
+      while (el) {
+        if (el instanceof Element) {
+          const cls = el.classList;
+          if (cls.contains('react-pdf__Page__textContent') || cls.contains('textLayer')) {
+            return el;
+          }
+        }
+        el = el.parentNode;
       }
+      return null;
+    };
+    const anchorLayer = closestTextLayer(anchorNode);
+    const focusLayer = closestTextLayer(focusNode);
+    if (!anchorLayer || !focusLayer) return;
+    // Only allow selection within the same text layer (same page)
+    if (anchorLayer !== focusLayer) return;
+
+    // Ignore overly small or excessively large selections
+    if (text.length < 2 || text.length > 500) return;
+
+    const range = selection.getRangeAt(0);
+    const rect = range.getBoundingClientRect();
+    // Avoid selections that cover most of the page (likely accidental drag)
+    const closestPageEl = (node: Node | null): Element | null => {
+      if (!node) return null;
+      let el: Node | null = node;
+      while (el) {
+        if (el instanceof Element && el.classList.contains('react-pdf__Page')) return el;
+        el = el.parentNode;
+      }
+      return null;
+    };
+    const pageEl = closestPageEl(anchorNode) || closestPageEl(focusNode);
+    if (pageEl) {
+      const pageRect = pageEl.getBoundingClientRect();
+      const areaRatio = (rect.width * rect.height) / (pageRect.width * pageRect.height);
+      const tooWide = rect.width > pageRect.width * 0.95;
+      const tooTall = rect.height > pageRect.height * 0.5;
+      if (areaRatio > 0.35 || tooWide || tooTall) {
+        // Likely a paragraph/page selection – ignore
+        return;
+      }
+    }
+    const viewerRect = viewerRef.current?.getBoundingClientRect();
+    if (viewerRect) {
+      setFloatingToolbar({
+        visible: true,
+        x: rect.left - viewerRect.left + rect.width / 2,
+        y: rect.top - viewerRect.top - 50,
+        selectedText: text
+      });
     }
   };
 
@@ -150,6 +202,22 @@ export function PDFViewer({ documentUrl, onAnnotation }: PDFViewerProps) {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [floatingToolbar.visible]);
 
+  // Track container width for responsive page sizing
+  useEffect(() => {
+    if (!contentRef.current) return;
+    const ro = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const cw = Math.floor(entry.contentRect.width);
+        setContainerWidth(cw);
+      }
+    });
+    ro.observe(contentRef.current);
+    return () => ro.disconnect();
+  }, []);
+
+  const pageBase = Math.max(320, containerWidth ? containerWidth - 32 : 800); // account for padding
+  const pageWidth = Math.round(pageBase * (zoom / 100));
+
   return (
     <div className="h-full flex flex-col">
       {/* PDF Toolbar */}
@@ -205,17 +273,19 @@ export function PDFViewer({ documentUrl, onAnnotation }: PDFViewerProps) {
       </div>
       {/* PDF Viewer Area */}
       <div className="flex-1 relative overflow-auto bg-gray-100" ref={viewerRef}>
-        <div className="max-w-4xl mx-auto p-8">
+        <div className="max-w-4xl mx-auto p-8" ref={contentRef}>
           <Card className="mb-8 shadow-lg">
             <CardContent className="p-8">
-              <div className="relative select-text leading-relaxed" style={{ fontSize: `${zoom}%` }} onMouseUp={handleTextSelection}>
-                <Document
-                  file={documentUrl}
-                  onLoadSuccess={({ numPages }) => setTotalPages(numPages)}
-                  loading={<div className="text-center text-gray-400">Loading PDF...</div>}
-                >
-                  <Page pageNumber={currentPage} width={800 * (zoom / 100)} />
-                </Document>
+              <div className="relative leading-relaxed" onMouseUp={handleTextSelection}>
+                <div className="flex justify-center select-text">
+                  <Document
+                    file={documentUrl}
+                    onLoadSuccess={({ numPages }) => setTotalPages(numPages)}
+                    loading={<div className="text-center text-gray-400">Loading PDF...</div>}
+                  >
+                    <Page pageNumber={currentPage} width={pageWidth} renderTextLayer />
+                  </Document>
+                </div>
                 {/* Render Annotations (visual only, not real PDF overlay) */}
                 {annotations
                   .filter(annotation => annotation.page === currentPage)

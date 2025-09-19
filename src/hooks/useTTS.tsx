@@ -144,7 +144,7 @@ export const useTTS = (text: string) => {
     };
 
     utterance.onerror = (event) => {
-      console.error('Speech error:', event.error, event);
+      console.log('Speech error:', event.error, event);
 
       // Handle different error types
       if (event.error === 'interrupted') {

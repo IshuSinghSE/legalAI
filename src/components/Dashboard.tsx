@@ -17,20 +17,31 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import dynamic from 'next/dynamic';
+import { Input } from './ui/input';
 
 import Link from 'next/link';
 import { UploadCard } from './UploadCard';
 import { Badge } from './ui/badge';
+import { formatBytes } from './ui/utils';
 import { useTTS } from '../hooks/useTTS';
 const PDFViewer = dynamic(() => import('./PDFViewer').then((mod) => mod.PDFViewer), { ssr: false });
 
+// PDF.js worker will be configured client-side where needed
+
 
 export function Dashboard() {
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
   const [uploadedFile, setUploadedFile] = React.useState<File | null>(null);
   const [isProcessing, setIsProcessing] = React.useState(false);
   const [summary, setSummary] = React.useState<string>('');
   const [highlights, setHighlights] = React.useState<string[]>([]);
+  const [analysisError, setAnalysisError] = React.useState<string | null>(null);
   const [selectedPages, setSelectedPages] = React.useState<string>('all');
+  const [totalPages, setTotalPages] = React.useState<number | null>(null);
+  const [pageMode, setPageMode] = React.useState<'first' | 'all' | 'range'>('all');
+  const [startPage, setStartPage] = React.useState<number>(1);
+  const [endPage, setEndPage] = React.useState<number>(1);
+  const [uploadedUrl, setUploadedUrl] = React.useState<string | null>(null);
   const [isTranslated, setIsTranslated] = React.useState(false);
   const [translatedText, setTranslatedText] = React.useState<string>('');
   const [selectedLanguage, setSelectedLanguage] = React.useState<string>('hi');
@@ -44,6 +55,7 @@ export function Dashboard() {
     setIsProcessing(true);
     setSummary('');
     setHighlights([]);
+    setAnalysisError(null); // Reset error state
 
     try {
       const formData = new FormData();
@@ -55,16 +67,20 @@ export function Dashboard() {
         body: formData,
       });
 
+      const data = await response.json();
+
       if (!response.ok) {
-        throw new Error('Analysis failed');
+        // Use the error message from the API response
+        throw new Error(data.error || 'Analysis failed');
       }
 
-      const data = await response.json();
       setSummary(data.summary);
       setHighlights(data.highlights || []);
     } catch (error) {
       console.error('Analysis error:', error);
-      setSummary('Error analyzing document. Please try again.');
+      // Set the error state to display it in the UI
+      setAnalysisError(error instanceof Error ? error.message : 'An unknown error occurred.');
+      setSummary(''); // Clear any previous summary
     } finally {
       setIsProcessing(false);
     }
@@ -76,6 +92,68 @@ export function Dashboard() {
       analyzeDocument();
     }
   }, [uploadedFile, analyzeDocument]);
+
+  // Create an object URL for the uploaded file for the viewer
+  React.useEffect(() => {
+    if (!uploadedFile) {
+      setUploadedUrl(null);
+      return;
+    }
+    const url = URL.createObjectURL(uploadedFile);
+    setUploadedUrl(url);
+    return () => {
+      URL.revokeObjectURL(url);
+    };
+  }, [uploadedFile]);
+
+  // Determine total pages from the uploaded PDF to build dynamic ranges
+  React.useEffect(() => {
+    let cancelled = false;
+    async function loadPageCount(file: File) {
+      try {
+        const data = await file.arrayBuffer();
+        const { pdfjs } = await import('react-pdf');
+        pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.js';
+        const loadingTask = pdfjs.getDocument({ data });
+        const pdf = await loadingTask.promise;
+        if (!cancelled) setTotalPages(pdf.numPages);
+        pdf.destroy();
+      } catch (e) {
+        console.error('Failed to read PDF page count', e);
+        if (!cancelled) setTotalPages(null);
+      }
+    }
+    if (uploadedFile) {
+      loadPageCount(uploadedFile);
+    } else {
+      setTotalPages(null);
+    }
+    return () => {
+      cancelled = true;
+    };
+  }, [uploadedFile]);
+
+  // Keep range values in bounds when totalPages or values change
+  React.useEffect(() => {
+    if (!totalPages || totalPages < 1) return;
+    const clampedStart = Math.max(1, Math.min(startPage, totalPages));
+    const clampedEnd = Math.max(clampedStart, Math.min(endPage, totalPages));
+    if (clampedStart !== startPage) setStartPage(clampedStart);
+    if (clampedEnd !== endPage) setEndPage(clampedEnd);
+  }, [totalPages, startPage, endPage]);
+
+  // Sync selectedPages with chosen mode/range
+  React.useEffect(() => {
+    if (pageMode === 'all') {
+      setSelectedPages('all');
+    } else if (pageMode === 'first') {
+      setSelectedPages('1-1');
+    } else {
+      const s = Math.min(startPage || 1, endPage || 1);
+      const e = Math.max(startPage || 1, endPage || 1);
+      setSelectedPages(`${s}-${e}`);
+    }
+  }, [pageMode, startPage, endPage]);
 
   const handleSummarizeAgain = React.useCallback(() => {
     analyzeDocument();
@@ -109,6 +187,35 @@ export function Dashboard() {
         // Could add error handling UI here
       }
     }
+  };
+
+  const handleUploadNewClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleUploadNewSelected: React.ChangeEventHandler<HTMLInputElement> = (e) => {
+    const file = e.target.files && e.target.files[0];
+    // reset the input so selecting the same file again re-triggers change
+    e.target.value = '';
+    if (!file) return;
+    // Only accept PDFs
+    if (file.type !== 'application/pdf') {
+      setAnalysisError('Please select a PDF file.');
+      return;
+    }
+    // Reset analysis/viewer state for a fresh start
+    setIsTranslated(false);
+    setTranslatedText('');
+    setSummary('');
+    setHighlights([]);
+    setAnalysisError(null);
+    setPageMode('all');
+    setStartPage(1);
+    setEndPage(1);
+    setSelectedPages('all');
+    setTotalPages(null);
+    setUploadedUrl(null);
+    setUploadedFile(file);
   };
 
   return (
@@ -164,10 +271,25 @@ export function Dashboard() {
                   {/* Uploaded Document Section */}
                   <Card>
                     <CardHeader>
-                      <CardTitle className="flex items-center gap-2">
-                        <Upload className="w-5 h-5 text-gray-600" />
-                        { 'Upload Document'}
-                      </CardTitle>
+                      <div className="flex items-center justify-between gap-4">
+                        <CardTitle className="flex items-center gap-2">
+                          <FileText className="w-5 h-5 text-gray-600" />
+                          { 'Document'}
+                        </CardTitle>
+                        <div className="flex items-center gap-2">
+                          <input
+                            ref={fileInputRef}
+                            type="file"
+                            accept="application/pdf"
+                            className="hidden"
+                            onChange={handleUploadNewSelected}
+                          />
+                          <Button variant="outline" size="sm" onClick={handleUploadNewClick}>
+                            <Upload className="w-5 h-5 text-gray-600" />
+                            {'Upload New'}
+                          </Button>
+                        </div>
+                      </div>
                     </CardHeader>
                     <CardContent>
                       <div className="border-2 border-dashed border-gray-200 rounded-lg p-6 hover:border-gray-300 transition-colors">
@@ -179,7 +301,7 @@ export function Dashboard() {
                             <div className="font-medium text-gray-900">
                               {uploadedFile?.name || 'Legal_Documents_-_Modernising_the_Formalities.pdf'}
                             </div>
-                            <div className="text-sm text-gray-500">{uploadedFile ? `${(uploadedFile.size / 1024 / 1024).toFixed(2)} MB` : '0.39 MB'}</div>
+                            <div className="text-sm text-gray-500">{uploadedFile ? formatBytes(uploadedFile.size) : '--'}</div>
                           </div>
                           <Badge variant="secondary" className="bg-green-100 text-green-800">
                             { isProcessing ? 'Uploading...' : 'Uploaded'}
@@ -194,17 +316,63 @@ export function Dashboard() {
                     <CardContent className="pt-6">
                       <div className="space-y-4">
                         <h3 className="font-semibold text-gray-900">Summarize Pages</h3>
-                        <Select value={selectedPages} onValueChange={setSelectedPages}>
-                          <SelectTrigger className="w-full">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="all">All Pages</SelectItem>
-                            <SelectItem value="1-5">Pages 1-5</SelectItem>
-                            <SelectItem value="5-10">Pages 5-10</SelectItem>
-                            <SelectItem value="custom">Custom Range</SelectItem>
-                          </SelectContent>
-                        </Select>
+                        <Tabs value={pageMode} onValueChange={(v) => setPageMode(v as typeof pageMode)} className="w-full">
+                          <TabsList className="w-full flex gap-2 bg-gray-100 p-1 rounded-lg">
+                            <TabsTrigger value="first" className="flex-1 text-sm">First Page</TabsTrigger>
+                            <TabsTrigger value="all" className="flex-1 text-sm">All Pages{totalPages ? ` (1-${totalPages})` : ''}</TabsTrigger>
+                            <TabsTrigger value="range" className="flex-1 text-sm">Range</TabsTrigger>
+                          </TabsList>
+                          <TabsContent value="first" className="pt-4">
+                            <p className="text-sm text-gray-600">Analyze only the first page.</p>
+                          </TabsContent>
+                          <TabsContent value="all" className="pt-4">
+                            <p className="text-sm text-gray-600">Analyze the entire document.</p>
+                          </TabsContent>
+                          <TabsContent value="range" className="pt-4 space-y-3">
+                            <div className="rounded-md border bg-gray-50 p-3 space-y-3">
+                              <div className="flex gap-3">
+                                <div className="flex-1 min-w-[140px]">
+                                  <label className="block text-xs text-gray-600 mb-1">Start page</label>
+                                  <Input
+                                    type="number"
+                                    min={1}
+                                    max={totalPages ?? undefined}
+                                    value={startPage}
+                                    onChange={(e) => {
+                                      const raw = Number(e.target.value);
+                                      const max = totalPages ?? Math.max(raw, 1);
+                                      const val = Math.min(Math.max(1, isNaN(raw) ? 1 : raw), max);
+                                      setStartPage(val);
+                                      if (val > endPage) setEndPage(val);
+                                    }}
+                                  />
+                                </div>
+                                <div className="flex-1 min-w-[140px]">
+                                  <label className="block text-xs text-gray-600 mb-1">End page</label>
+                                  <Input
+                                    type="number"
+                                    min={startPage}
+                                    max={totalPages ?? undefined}
+                                    value={endPage}
+                                    onChange={(e) => {
+                                      const raw = Number(e.target.value);
+                                      const max = totalPages ?? Math.max(raw, startPage);
+                                      const val = Math.min(Math.max(startPage, isNaN(raw) ? startPage : raw), max);
+                                      setEndPage(val);
+                                    }}
+                                  />
+                                </div>
+                              </div>
+                              <div className="text-xs text-gray-600">
+                                {totalPages ? (
+                                  <span>Document has {totalPages} pages. Selected: {Math.min(startPage, endPage)}–{Math.max(startPage, endPage)}</span>
+                                ) : (
+                                  <span>Upload a PDF to select a range.</span>
+                                )}
+                              </div>
+                            </div>
+                          </TabsContent>
+                        </Tabs>
                       </div>
                     </CardContent>
                   </Card>
@@ -331,6 +499,14 @@ export function Dashboard() {
                             )}
                           </div>
                         </div>
+                      ) : analysisError ? (
+                        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                          <div className="flex items-center gap-2 mb-2">
+                            <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+                            <span className="text-sm font-medium text-red-800">Analysis Failed</span>
+                          </div>
+                          <p className="text-sm text-red-700">{analysisError}</p>
+                        </div>
                       ) : (
                         <div className="text-center py-12">
                           <h3 className="font-medium text-gray-900 mb-2">Ready to analyze</h3>
@@ -346,7 +522,7 @@ export function Dashboard() {
             <TabsContent value="viewer" className="mt-6">
               <div className="h-[800px] border rounded-lg overflow-hidden">
                 <PDFViewer
-                  documentUrl="/sample.pdf"
+                  documentUrl={uploadedUrl ?? '/sample.pdf'}
                   onAnnotation={(annotation) => {
                     console.log('New annotation:', annotation);
                   }}
