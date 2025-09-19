@@ -155,6 +155,145 @@ export function Dashboard() {
     }
   }, [pageMode, startPage, endPage]);
 
+  const handleDownload = React.useCallback(async () => {
+    if (!summary) return;
+
+    try {
+      const { PDFDocument, rgb } = await import('pdf-lib');
+
+      const pdfDoc = await PDFDocument.create();
+      let page = pdfDoc.addPage();
+      const { width, height } = page.getSize();
+
+      let yPosition = height - 30;
+      const fontSize = 12;
+      const lineHeight = fontSize + 5;
+      const maxWidth = width ; // Leave margins on both sides
+
+      // Helper function to wrap text
+      const wrapText = (text: string, maxWidth: number, fontSize: number): string[] => {
+        const words = text.split(' ');
+        const lines: string[] = [];
+        let currentLine = '';
+
+        for (const word of words) {
+          const testLine = currentLine ? `${currentLine} ${word}` : word;
+          // Rough estimation of text width (this is approximate)
+          const estimatedWidth = testLine.length * (fontSize * 0.6);
+
+          if (estimatedWidth > maxWidth && currentLine) {
+            lines.push(currentLine);
+            currentLine = word;
+          } else {
+            currentLine = testLine;
+          }
+        }
+
+        if (currentLine) {
+          lines.push(currentLine);
+        }
+
+        return lines;
+      };
+
+      // Helper function to draw text with page management
+      const drawText = (text: string, x: number, y: number, size: number, color: ReturnType<typeof rgb>) => {
+        if (y < 50) {
+          page = pdfDoc.addPage();
+          yPosition = height - 50;
+          return height - 50;
+        }
+        page.drawText(text, { x, y, size, color });
+        return y - lineHeight;
+      };
+
+      // Title
+      yPosition = drawText('Document Analysis Results', 50, yPosition, 18, rgb(0, 0, 0));
+      yPosition -= 20;
+
+      // Original Document Information
+      if (uploadedFile) {
+        yPosition = drawText('Original Document Information:', 50, yPosition, 14, rgb(0, 0, 0));
+        yPosition -= 15;
+
+        const fileName = uploadedFile.name;
+        const fileSize = formatBytes(uploadedFile.size);
+        const uploadDate = new Date().toLocaleString();
+
+        yPosition = drawText(`File Name: ${fileName}`, 50, yPosition, fontSize, rgb(0, 0, 0));
+        yPosition = drawText(`File Size: ${fileSize}`, 50, yPosition, fontSize, rgb(0, 0, 0));
+        yPosition = drawText(`Analysis Date: ${uploadDate}`, 50, yPosition, fontSize, rgb(0, 0, 0));
+        yPosition -= 20;
+      }
+
+      // Summary
+      yPosition = drawText('Summary:', 50, yPosition, 14, rgb(0, 0, 0));
+      yPosition -= 15;
+
+      const summaryLines = summary.split('\n');
+      for (const line of summaryLines) {
+        const wrappedLines = wrapText(line, maxWidth, fontSize);
+        for (const wrappedLine of wrappedLines) {
+          yPosition = drawText(wrappedLine, 50, yPosition, fontSize, rgb(0, 0, 0));
+        }
+      }
+
+      // Highlights
+      if (highlights.length > 0) {
+        yPosition -= 15;
+        yPosition = drawText('Key Highlights:', 50, yPosition, 14, rgb(0, 0, 0));
+        yPosition -= 15;
+
+        highlights.forEach((highlight, index) => {
+          const highlightText = `${index + 1}. ${highlight}`;
+          const wrappedLines = wrapText(highlightText, maxWidth, fontSize);
+          for (const wrappedLine of wrappedLines) {
+            yPosition = drawText(wrappedLine, 50, yPosition, fontSize, rgb(0, 0, 0));
+          }
+        });
+      }
+
+      // Translation
+      if (isTranslated && translatedText) {
+        yPosition -= 15;
+        yPosition = drawText(`Translation (${selectedLanguage}):`, 50, yPosition, 14, rgb(0, 0, 0));
+        yPosition -= 15;
+
+        const translationLines = translatedText.split('\n');
+        for (const line of translationLines) {
+          const wrappedLines = wrapText(line, maxWidth, fontSize);
+          for (const wrappedLine of wrappedLines) {
+            yPosition = drawText(wrappedLine, 50, yPosition, fontSize, rgb(0, 0, 0));
+          }
+        }
+      }
+
+      const pdfBytes = await pdfDoc.save();
+      const blob = new Blob([new Uint8Array(pdfBytes)], { type: 'application/pdf' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `analysis-${uploadedFile?.name || 'document'}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      // Fallback to text download
+      const content = `Document Analysis Results\n\nSummary:\n${summary}\n\nKey Highlights:\n${highlights.map((h, i) => `${i + 1}. ${h}`).join('\n')}\n\n${isTranslated && translatedText ? `Translation (${selectedLanguage}):\n${translatedText}` : ''}`;
+      const blob = new Blob([content], { type: 'text/plain' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `analysis-${uploadedFile?.name || 'document'}.txt`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+  }, [summary, highlights, isTranslated, translatedText, selectedLanguage, uploadedFile]);
+
   const handleSummarizeAgain = React.useCallback(() => {
     analyzeDocument();
   }, [analyzeDocument]);
@@ -392,7 +531,7 @@ export function Dashboard() {
                       <RotateCcw className={`w-4 h-4 ${isProcessing ? 'animate-spin' : ''}`} />
                       Summarize Again
                     </Button>
-                    <Button variant="outline" className="flex items-center gap-2" disabled={!summary}>
+                    <Button variant="outline" className="flex items-center gap-2" onClick={handleDownload} disabled={!summary}>
                       <Download className="w-4 h-4" />
                       Download
                     </Button>

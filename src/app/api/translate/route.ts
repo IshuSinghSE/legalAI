@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server';
-import pdf from 'pdf-parse';
 import axios from 'axios';
 
 // Azure AI credentials from environment variables
@@ -38,6 +37,15 @@ export async function POST(req: Request) {
     if (file) {
       const arrayBuffer = await file.arrayBuffer();
       const buffer = Buffer.from(arrayBuffer);
+
+      // Dynamically import pdf-parse to avoid import-time issues
+      let pdf;
+      try {
+        pdf = (await import('pdf-parse')).default;
+      } catch (importError) {
+        console.error('Failed to import pdf-parse:', importError);
+        return NextResponse.json({ error: 'PDF parsing library not available' }, { status: 500 });
+      }
 
       // Extract text from PDF
       const data = await pdf(buffer);
