@@ -49,16 +49,16 @@ export function Header({ currentPage, onPageChange }: HeaderProps) {
 
           {/* CTA Buttons */}
           <div className="flex items-center space-x-4">
-            <Button variant="ghost" onClick={() => router.push('/dashboard')}>
-              Go to Dashboard
+            <Button  size="sm"
+              className="bg-blue-600 hover:bg-blue-700" onClick={() => router.push('/dashboard')}>
+              Get Started
             </Button>
-            <Button
-              size="sm"
-              className="bg-blue-600 hover:bg-blue-700"
+            {/* <Button
+             
               onClick={() => onPageChange('document-upload')}
             >
               Get Started
-            </Button>
+            </Button> */}
           </div>
         </div>
       </div>

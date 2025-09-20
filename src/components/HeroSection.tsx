@@ -45,9 +45,11 @@ export function HeroSection({ onGetStarted, onLearnMore }: HeroSectionProps) {
           <div className="relative">
             <div className="aspect-square max-w-lg mx-auto">
               <ImageWithFallback
-                src="https://images.unsplash.com/photo-1591696331111-ef9586a5b17a?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxhcnRpZmljaWFsJTIwaW50ZWxsaWdlbmNlJTIwbGVnYWwlMjB0ZWNobm9sb2d5fGVufDF8fHx8MTc1NzA3NjczNnww&ixlib=rb-4.1.0&q=80&w=1080&utm_source=figma&utm_medium=referral"
-                alt="AI-powered legal technology"
-                className="w-full h-full object-cover rounded-2xl shadow-2xl"
+                src="/images/hero-illustration.png"
+                alt="Hero Illustration"
+                width={400 }
+                height={400}
+                className="w-full h-full object-cover rounded-lg"
               />
             </div>
             {/* Floating elements */}
